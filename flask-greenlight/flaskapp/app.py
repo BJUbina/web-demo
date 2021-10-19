@@ -1,6 +1,6 @@
 from flask import Flask, render_template, url_for, flash, redirect, request, session, logging
 from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
+from flask_migrate import Migrate   
 from datetime import datetime
 from wtforms import Form, BooleanField, StringField, PasswordField, validators
 from passlib.hash import sha256_crypt
@@ -60,6 +60,7 @@ class User(db.Model):
                                backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
 
     # Defines how a user object will be printed in the shell
+    
     def __repr__(self):
         return f"User ('{self.username}', '{self.email}', '{self.id}')"
 
@@ -156,7 +157,6 @@ class RegistrationForm(Form):
         validators.EqualTo('confirm', message='Passwords do not match')
     ])
     confirm = PasswordField('Repeat Password')
-    accept_tos = BooleanField('I accept the Terms of Service and Privacy Notice', [validators.Required()])
     
 
 
@@ -198,7 +198,7 @@ def login():
         # Get user by email
         user = User.query.filter_by(email=email).first()
 
-        # If there is a user with the email
+        # If there is a user with the email 
         if user != None:
             # Get stored hash
             password = user.password
@@ -237,6 +237,7 @@ def logout():
     return redirect(url_for('login'))
 
 
+    
 # Profile route
 @app.route('/profile')
 @is_logged_in
@@ -473,3 +474,4 @@ def error404(error):
 
 if __name__ == '__main__':
     app.run(debug=True)
+
