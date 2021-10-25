@@ -13,7 +13,7 @@ from functools import wraps
 ##########################  CONFIG  ####################################
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db2.sqlite3'
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
