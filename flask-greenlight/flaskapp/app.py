@@ -104,8 +104,8 @@ def current_user():
 
 ############################    ROUTES  #####################################
 
-# Home route (default)
-@app.route('/')
+# Home route 
+@app.route('/home')
 def home():
     posts = Post.query.filter_by(comment=None).all()
     follow_suggestions = User.query.all()[0:6]
@@ -187,8 +187,8 @@ def register():
     return render_template('register.html', form=form)
 
 
-# User login
-@app.route('/login', methods=['GET', 'POST'])
+# User login (default)
+@app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         # Get form fields
