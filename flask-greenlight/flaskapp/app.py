@@ -21,7 +21,7 @@ app.config["SECRET_KEY"] = "testing321"
 
 #app.secret_key = 'testing321'
 
-app.config['UPLOAD_FOLDER'] = 'N:\\Documents\\webdev\\python\\flask-tweeeter\\flaskapp\\static\\profile_pics'
+app.config['UPLOAD_FOLDER'] = './static/profile_pics'
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'JPG', 'PNG'])
 
 
