@@ -27,14 +27,14 @@ ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'JPG', 'PNG'])
 
 ############################    MODELS  ##################################
 
-# Likes association table (associates between users and likes with to columns)
+# Likes association table -- associates between users and likes with to columns
 likes = db.Table('likes',
                  db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
                  db.Column('post_id', db.Integer, db.ForeignKey('post.id'))
                  )
 
 
-# Likes association table (associates between users and likes with to columns)
+# Likes association table -- associates between users and likes with to columns
 followers = db.Table('follows',
                      db.Column('follower_id', db.Integer,
                                db.ForeignKey('user.id'), nullable=True),
@@ -59,7 +59,7 @@ class User(db.Model):
                                secondaryjoin=(followers.c.followed_id == id),
                                backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
 
-    # Defines how a user object will be printed in the shell
+    # Defines how the user will be printed in the shell
     
     def __repr__(self):
         return f"User ('{self.username}', '{self.email}', '{self.id}')"
@@ -75,14 +75,14 @@ class Post(db.Model):
     retweet = db.Column(db.Integer, default=None, nullable=True, unique=False)
     comment = db.Column(db.Integer, default=None, nullable=True, unique=False)
 
-    # Defines how a post object will be printed in the shell
+    # Defines how a post will be printed 
     def __repr__(self):
         return f"Post ('{self.id}', '{self.date_posted}')"
 
 
 ##################################  UTILS #####################################
 
-# Check if user logged in
+# Check if an user logged in
 def is_logged_in(f):
     @wraps(f)
     def wrap(*args, **kwargs):
@@ -187,7 +187,7 @@ def register():
     return render_template('register.html', form=form)
 
 
-# User login (default)
+# User login (default page)
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -214,7 +214,7 @@ def login():
                 flash('You are now logged in', 'success')
                 return redirect(url_for('home'))
 
-            # If passwords don't match
+            # else if passwords don't match
             else:
                 error = 'Invalid password'
                 return render_template('login.html', error=error)
@@ -410,14 +410,14 @@ def unfollow(id):
         return redirect(url_for('home'))
 
 
-# Retweet route
+# Repost route
 @app.route('/retweet/<id>')
 @is_logged_in
 def retweet(id):
     re_post = Post.query.filter_by(id=id).first()
 
     if re_post.retweet != None:
-        flash("You can't retweet a retweeted tweet :(", 'danger')
+        flash("You can't repost a reposted tweet :(", 'danger')
         return redirect(url_for('home'))
 
     if Post.query.filter_by(user_id=current_user().id).filter_by(retweet=id).all():
@@ -426,14 +426,14 @@ def retweet(id):
         db.session.delete(rm_post)
         db.session.commit()
 
-        flash('Unretweeted successfully', 'warning')
+        flash('Unposted successfully', 'warning')
         return redirect(url_for('home'))
 
     post = Post(content='', user_id=current_user().id, retweet=id)
     db.session.add(post)
     db.session.commit()
 
-    flash('Retweeted successfully', 'success')
+    flash('Reposted successfully', 'success')
     return redirect(url_for('home'))
 
 
@@ -466,7 +466,7 @@ def new_comment(post_id):
 
     return render_template('new_post.html', form=form, title=f"Comment to @{commented_post.author.username}'s tweeet:")
 
-
+#hadles and shows user there is an error
 @app.errorhandler(404)
 def error404(error):
     return render_template('404.html'), 404
