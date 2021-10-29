@@ -464,7 +464,7 @@ def new_comment(post_id):
             f"You have replied to {commented_post.author.username}'s tweeet", 'success')
         return redirect(url_for('home'))
 
-    return render_template('new_post.html', form=form, title=f"Comment to @{commented_post.author.username}'s tweeet:")
+    return render_template('new_post.html', form=form, title=f"Comment to @{commented_post.author.username}'s post:")
 
 #hadles and shows user there is an error
 @app.errorhandler(404)
