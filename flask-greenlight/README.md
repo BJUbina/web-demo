@@ -46,4 +46,4 @@ python3 app.py
 
 <br>
 
-### Now open you browser to localhost:5000 and try it out :)
+### Now open you browser to localhost:5000 and enjoy Green Light 
