@@ -1,18 +1,3 @@
-# flask-greenlight
-
-
-
-<br/>
-
-* Python
-* Flask
-* SQLAlchemy 
-* Flask Migrate
-* Sha_256 (PASSWORD HASHING)
-* WTForms (REGISTRATION FORMS)
-* CSS framework
-
-<br/>
 
 # Green Light Installation
 
