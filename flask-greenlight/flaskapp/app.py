@@ -366,7 +366,7 @@ def search():
 
 # Message route
 
-@app.route('/message')
+@app.route('/messages')
 def message():
     return render_template('message.html')
 
