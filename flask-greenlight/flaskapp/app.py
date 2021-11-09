@@ -5,8 +5,10 @@ from datetime import datetime
 from wtforms import Form, BooleanField, StringField, PasswordField, validators
 from passlib.hash import sha256_crypt
 import os
+import json
 from werkzeug.utils import secure_filename
 from functools import wraps
+from flask_socketio import SocketIO
 
 
 
@@ -15,9 +17,12 @@ from functools import wraps
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db2.sqlite3'
 db = SQLAlchemy(app)
+socketio = SocketIO(app)
 migrate = Migrate(app, db)
 
 app.config["SECRET_KEY"] = "testing321"
+
+#socketio = SocketIO(app)
 
 #app.secret_key = 'testing321'
 
@@ -359,6 +364,21 @@ def search():
         return render_template('results.html', posts=posts, Post_model=Post, user=current_user(), query=query)
 
 
+# Message route
+
+@app.route('/message')
+def message():
+    return render_template('message.html')
+
+def messageReceived(methods =['GET', 'POST']):
+    print ('message was received!')
+
+@socketio.on('my event')
+def handle_my_custom_event(json, methods=['GET', 'POST']):
+    print('received my event: ' + str(json))
+    socketio.emit('my response', json, callback=messageReceived)
+
+
 # Follow route
 @app.route('/follow/<id>')
 @is_logged_in
@@ -474,4 +494,3 @@ def error404(error):
 
 if __name__ == '__main__':
     app.run(debug=True)
-
