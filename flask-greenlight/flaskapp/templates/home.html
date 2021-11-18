@@ -34,7 +34,7 @@
                         <div class="level">
                             <div class="level-left">
                                 <div class="content is-small">
-                                    <small>Tweeets</small>
+                                    <small>Posts</small>
                                     {% set user_posts = Post_model.query.filter_by(user_id=user.id).all() %}
                                     <h4 class="has-text-success" style="margin-bottom: 0;">{{ user_posts|length }}</h4>
                                 </div>
