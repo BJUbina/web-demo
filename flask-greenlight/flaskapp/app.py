@@ -8,7 +8,8 @@ import os
 import json
 from werkzeug.utils import secure_filename
 from functools import wraps
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, emit
+from flask_cors import CORS
 
 
 
@@ -21,10 +22,7 @@ socketio = SocketIO(app)
 migrate = Migrate(app, db)
 
 app.config["SECRET_KEY"] = "testing321"
-
-#socketio = SocketIO(app)
-
-#app.secret_key = 'testing321'
+CORS(app)
 
 app.config['UPLOAD_FOLDER'] = './static/profile_pics'
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'JPG', 'PNG'])
@@ -363,20 +361,15 @@ def search():
 
         return render_template('results.html', posts=posts, Post_model=Post, user=current_user(), query=query)
 
-
 # Message route
-
 @app.route('/messages')
-def message():
-    return render_template('message.html')
-
-def messageReceived(methods =['GET', 'POST']):
-    print ('message was received!')
+def index():
+    return render_template('./message.html')
 
 @socketio.on('my event')
-def handle_my_custom_event(json, methods=['GET', 'POST']):
-    print('received my event: ' + str(json))
-    socketio.emit('my response', json, callback=messageReceived)
+def handle_my_custom_event(json):
+    print('received something: ' + str(json))
+    socketio.emit('my response', json)
 
 
 # Follow route
@@ -493,4 +486,4 @@ def error404(error):
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    socketio.run(app, debug=True)
