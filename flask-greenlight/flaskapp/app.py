@@ -244,12 +244,13 @@ def logout():
 
     
 # Profile route
-@app.route('/profile')
+@app.route('/profile', methods =['GET','POST'])
 @is_logged_in
 def profile():
     profile_pic = url_for(
         'static', filename='profile_pics/' + current_user().image_file)
-    return render_template('profile.html', profile_pic=profile_pic)
+    posts = current_user().posts
+    return render_template('profile.html', profile_pic=profile_pic, posts=posts, Post_model=Post, user=current_user())
 
 
 # Post form class
