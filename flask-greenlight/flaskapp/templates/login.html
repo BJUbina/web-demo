@@ -15,10 +15,11 @@
                 <label for="email">Email</label>
                 <input type="text" name="email" class="input" value="{{request.form.email}}">
             </div>
-            <div class="control" style="margin-bottom: 3rem;">
+            <div class="control" style="">
                 <label for="password">Password</label>
                 <input type="password" name="password" class="input" value="{{request.form.password}}">
             </div>
+            <a href="{{ url_for('forgotpassword') }}" style="font-size: .8rem; text-align: left; margin-top: .5rem; margin-bottom: 3rem;">Forgot Password?</a>
             <button type="submit" class="button is-success" style="width: 8rem; align-self: center;">Submit</button>
             <p style="font-size: .8rem; margin-top: 3rem; text-align: center;"> Don’t have an account? <a href="{{ url_for('register') }}">Sign up</a></p>
             

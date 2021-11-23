@@ -6,10 +6,14 @@ from wtforms import Form, BooleanField, StringField, PasswordField, validators
 from passlib.hash import sha256_crypt
 import os
 import json
+import jwt
 from werkzeug.utils import secure_filename
 from functools import wraps
 from flask_socketio import SocketIO, emit
-from flask_cors import CORS
+from flask_mail import Message, Mail
+from cryptography.fernet import Fernet
+import urllib.parse
+
 
 
 
@@ -20,9 +24,21 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db2.sqlite3'
 db = SQLAlchemy(app)
 socketio = SocketIO(app)
 migrate = Migrate(app, db)
-
 app.config["SECRET_KEY"] = "testing321"
-CORS(app)
+
+app.config.update(dict(
+    DEBUG = True,
+    MAIL_SERVER = 'smtp.gmail.com',
+    MAIL_PORT = 587,
+    MAIL_USE_TLS = True,
+    MAIL_USE_SSL = False,
+    MAIL_USERNAME = "greenlightv1@gmail.com",
+    MAIL_PASSWORD = 'John123#',
+))
+mail = Mail(app)
+
+key = Fernet.generate_key()
+fernet = Fernet(key)
 
 app.config['UPLOAD_FOLDER'] = './static/profile_pics'
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'JPG', 'PNG'])
@@ -61,11 +77,25 @@ class User(db.Model):
                                primaryjoin=(followers.c.follower_id == id),
                                secondaryjoin=(followers.c.followed_id == id),
                                backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
-
-    # Defines how the user will be printed in the shell
+                                # Defines how a post will be printed 
     
     def __repr__(self):
-        return f"User ('{self.username}', '{self.email}', '{self.id}')"
+        return f"Post ('{self.id}', '{self.date_posted}')"
+    
+############################    Email  ##################################
+
+
+
+def send_email(user):   
+    newe = urllib.parse.quote_plus(user.email,safe='')
+    msg = Message()
+    msg.subject = "Flask App Password Reset"
+    msg.sender = "greenlightv1@gmail.com"
+    msg.recipients = [user.email]
+    msg.html = render_template('email.html',user=user,token=newe)
+    mail.send(msg)
+
+
 
 
 # Post model
@@ -78,9 +108,7 @@ class Post(db.Model):
     retweet = db.Column(db.Integer, default=None, nullable=True, unique=False)
     comment = db.Column(db.Integer, default=None, nullable=True, unique=False)
 
-    # Defines how a post will be printed 
-    def __repr__(self):
-        return f"Post ('{self.id}', '{self.date_posted}')"
+   
 
 
 ##################################  UTILS #####################################
@@ -193,42 +221,80 @@ def register():
 # User login (default page)
 @app.route('/', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        # Get form fields
-        email = request.form['email'].lower()
-        password_candidate = request.form['password']
+    if session.get('logged_in') :
+        return redirect(url_for('home'))
+    else: 
+        if request.method == 'POST':
+            # Get form fields
+            email = request.form['email'].lower()
+            password_candidate = request.form['password']
 
-        # Get user by email
-        user = User.query.filter_by(email=email).first()
+            # Get user by email
+            user = User.query.filter_by(email=email).first()
 
-        # If there is a user with the email 
-        if user != None:
-            # Get stored hash
-            password = user.password
+            # If there is a user with the email 
+            if user != None:
+                # Get stored hash
+                password = user.password
 
-            # If passwords match
-            if sha256_crypt.verify(password_candidate, password):
-                # Passed
-                session['logged_in'] = True
-                session['username'] = user.username
-                session['user_id'] = user.id
+                # If passwords match
+                if sha256_crypt.verify(password_candidate, password):
+                    # Passed
+                    session['logged_in'] = True
+                    session['username'] = user.username
+                    session['user_id'] = user.id
 
-                app.logger.info(f'{user.username} LOGGED IN SUCCESSFULLY')
-                flash('You are now logged in', 'success')
-                return redirect(url_for('home'))
+                    app.logger.info(f'{user.username} LOGGED IN SUCCESSFULLY')
+                    flash('You are now logged in', 'success')
+                    return redirect(url_for('home'))
 
-            # else if passwords don't match
+                # else if passwords don't match
+                else:
+                    error = 'Invalid password'
+                    return render_template('login.html', error=error)
+
+            # No user with the email
             else:
-                error = 'Invalid password'
+                error = 'Email not found'
                 return render_template('login.html', error=error)
 
-        # No user with the email
-        else:
-            error = 'Email not found'
-            return render_template('login.html', error=error)
+        # GET Request
+        return render_template('login.html')
 
-    # GET Request
-    return render_template('login.html')
+# Forgot Password
+
+@app.route('/forgotpassword', methods=['GET','POST'])
+def forgotpassword() : 
+    if request.method == 'POST' :
+        email = request.form['email'].lower()
+        user = User.query.filter_by(email=email).first()
+        if user != None:
+            send_email(user)
+        else:  
+            error = 'Email not found'
+            return render_template('forgotpassword.html', error=error)
+
+    return render_template('forgotpassword.html')
+
+# Handle Email Confirmation
+
+@app.route('/confirm/<token>', methods=['GET','POST'])
+def confirm(token):
+    email=urllib.parse.unquote(token)
+    user = User.query.filter_by(email=email).first()
+    if request.method == 'POST' :
+        new_password = request.form['password']
+        confirm_password = request.form['confirmpass']
+        if new_password != confirm_password :
+            error = 'Password Dont match'
+            return render_template('resetpassword.html', error=error)
+        else : 
+            user.password = sha256_crypt.encrypt(str(new_password))
+            db.session.commit()
+            return redirect(url_for('login'))
+
+    
+    return render_template('resetpassword.html', email=email)
 
 
 # Logout
@@ -478,6 +544,25 @@ def new_comment(post_id):
         return redirect(url_for('home'))
 
     return render_template('new_post.html', form=form, title=f"Comment to @{commented_post.author.username}'s post:")
+
+# Token for passwords
+
+def generate_confirmation_token(email):
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    return serializer.dumps(email, salt=app.config['SECURITY_PASSWORD_SALT'])
+
+
+def confirm_token(token, expiration=3600):
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    try:
+        email = serializer.loads(
+            token,
+            salt=app.config['SECURITY_PASSWORD_SALT'],
+            max_age=expiration
+        )
+    except:
+        return False
+    return email
 
 #hadles and shows user there is an error
 @app.errorhandler(404)
