@@ -3,7 +3,7 @@
 
 {% block body %}
 <div style="display: flex; flex-direction: column; align-items: center;">
-    <a style="width: 8rem;">
+    <a style="width: 8rem;" href="{{ url_for('login')}}">
         <img src="{{ url_for('static', filename='graphics/' + 'logo4.png') }}" alt="">
     </a>
     <div style="background-color: white; display: flex; flex-direction: column; align-items: center; margin-top: 3rem; padding: 6rem; border-radius: 2rem;">

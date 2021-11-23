@@ -11,7 +11,6 @@ from werkzeug.utils import secure_filename
 from functools import wraps
 from flask_socketio import SocketIO, emit
 from flask_mail import Message, Mail
-from cryptography.fernet import Fernet
 import urllib.parse
 
 
@@ -37,9 +36,6 @@ app.config.update(dict(
 ))
 mail = Mail(app)
 
-key = Fernet.generate_key()
-fernet = Fernet(key)
-
 app.config['UPLOAD_FOLDER'] = './static/profile_pics'
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'JPG', 'PNG'])
 
@@ -60,6 +56,8 @@ followers = db.Table('follows',
                      db.Column('followed_id', db.Integer,
                                db.ForeignKey('user.id'), nullable=True)
                      )
+
+
 
 
 # User model
@@ -269,10 +267,13 @@ def forgotpassword() :
         email = request.form['email'].lower()
         user = User.query.filter_by(email=email).first()
         if user != None:
+            emailFound = True
             send_email(user)
+            return render_template('forgotpassword.html', email=email, found=emailFound)
         else:  
+            emailFound = False
             error = 'Email not found'
-            return render_template('forgotpassword.html', error=error)
+            return render_template('forgotpassword.html', error=error, found=emailFound)
 
     return render_template('forgotpassword.html')
 
@@ -286,7 +287,7 @@ def confirm(token):
         new_password = request.form['password']
         confirm_password = request.form['confirmpass']
         if new_password != confirm_password :
-            error = 'Password Dont match'
+            error = 'Password do not match'
             return render_template('resetpassword.html', error=error)
         else : 
             user.password = sha256_crypt.encrypt(str(new_password))
