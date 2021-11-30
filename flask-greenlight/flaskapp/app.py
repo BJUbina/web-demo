@@ -343,14 +343,12 @@ def profile():
     profile_pic = url_for(
         'static', filename='profile_pics/' + current_user().image_file)
     posts = current_user().posts
-
     follow_history = current_user().followed.all()
 
     # Remove current user from follow suggestions
     if current_user():  # If there is a user in the session
         if current_user() in follow_history:  # If the current user is in the user's follow suggestions
             follow_history.remove(current_user())
-    
     return render_template('profile.html', profile_pic=profile_pic, posts=posts, Post_model=Post, user=current_user())
 
 
