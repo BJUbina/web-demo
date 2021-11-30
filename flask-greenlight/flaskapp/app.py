@@ -6,7 +6,6 @@ from wtforms import Form, BooleanField, StringField, PasswordField, validators
 from passlib.hash import sha256_crypt
 import os
 import json
-import jwt
 from werkzeug.utils import secure_filename
 from functools import wraps
 from flask_socketio import SocketIO, emit
@@ -58,8 +57,6 @@ followers = db.Table('follows',
                      )
 
 
-
-
 # User model
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -75,11 +72,51 @@ class User(db.Model):
                                primaryjoin=(followers.c.follower_id == id),
                                secondaryjoin=(followers.c.followed_id == id),
                                backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
-                                # Defines how a post will be printed 
-    
+    my_notifications = db.relationship('Notification', backref='author',lazy=True)
+
     def __repr__(self):
         return f"Post ('{self.id}', '{self.date_posted}')"
+
+# Notification model
+
+# 1 - comment, 2-like, 3-retweet 4-follow you
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    postId = db.Column(db.Integer, nullable=False)
+    my_user = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_C = db.Column(db.Integer, nullable=False)
+    typeAct = db.Column(db.Integer, nullable=False)
+    date_posted = db.Column(db.DateTime, nullable=False,default=datetime.utcnow)
     
+# Post model
+class Post(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    date_posted = db.Column(db.DateTime, nullable=False,
+                            default=datetime.utcnow)
+    content = db.Column(db.Text, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    retweet = db.Column(db.Integer, default=None, nullable=True, unique=False)
+    comment = db.Column(db.Integer, default=None, nullable=True, unique=False)
+
+# # Message model
+
+class Chat(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user1 = db.Column(db.Integer, nullable=False)
+    user2 = db.Column(db.Integer, nullable=False)
+    messages = db.relationship('SingleMessage', backref='ChatBoth',lazy=True)
+class SingleMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, nullable=False)
+    recipient_id = db.Column(db.Integer, nullable=False)
+    body = db.Column(db.String(140))
+    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    chatOwner = db.Column(db.Integer,db.ForeignKey('chat.id'))
+
+
+
+
+
 ############################    Email  ##################################
 
 
@@ -93,18 +130,6 @@ def send_email(user):
     msg.html = render_template('email.html',user=user,token=newe)
     mail.send(msg)
 
-
-
-
-# Post model
-class Post(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    date_posted = db.Column(db.DateTime, nullable=False,
-                            default=datetime.utcnow)
-    content = db.Column(db.Text, nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    retweet = db.Column(db.Integer, default=None, nullable=True, unique=False)
-    comment = db.Column(db.Integer, default=None, nullable=True, unique=False)
 
    
 
@@ -169,13 +194,16 @@ def home_following():
 
     return render_template('home.html', posts=posts, user=current_user(), Post_model=Post, likes=likes, follow_suggestions=follow_suggestions, User=User)
 
+@app.route('/notifications')
+def notifications():
+    my_nof = Notification.query.filter_by(author=current_user())
+    return render_template('notifications.html', user=my_nof, dbUser = User, myUser=current_user())
 
 # Single post route
 @app.route('/post/<int:id>')
 def post(id):
     post = Post.query.filter_by(id=id).first()
     return render_template('post.html', id=id, post=post, Post_model=Post, user=current_user())
-
 
 # Register form class
 class RegistrationForm(Form):
@@ -315,14 +343,12 @@ def profile():
     profile_pic = url_for(
         'static', filename='profile_pics/' + current_user().image_file)
     posts = current_user().posts
-    
     follow_history = current_user().followed.all()
 
     # Remove current user from follow suggestions
     if current_user():  # If there is a user in the session
         if current_user() in follow_history:  # If the current user is in the user's follow suggestions
             follow_history.remove(current_user())
-            
     return render_template('profile.html', profile_pic=profile_pic, posts=posts, Post_model=Post, user=current_user())
 
 
@@ -356,6 +382,17 @@ def new_post():
     return render_template('new_post.html', form=form, title='New post')
 
 
+@app.route('/edit/<int:id>', methods=['GET','POST'])
+def editPost(id) :
+    post = Post.query.filter_by(id=id).first()
+    form = PostForm(request.form)
+    if request.method == 'POST' and form.validate():
+        content = form.content.data
+        post.content = content
+        db.session.commit()
+        return redirect(url_for('home'))
+    return render_template('new_post.html',form=form,title='Edit')
+
 # Like post
 @app.route('/like/<id>')
 @is_logged_in
@@ -376,6 +413,7 @@ def like_post(id):
     # If the user has not liked the post yet
     else:
         post.likes.append(current_user())
+        notification = Notification(postId=id, author=post.author, user_C=current_user().id , typeAct=2)
         db.session.commit()
         return redirect(url_for('home', _anchor=id))
 
@@ -435,18 +473,60 @@ def search():
         posts = Post.query.filter(
             Post.content.like('%' + query + '%'))
 
-        return render_template('results.html', posts=posts, Post_model=Post, user=current_user(), query=query)
+        persons = User.query.filter(User.username.like('%' + query + '%'))
+
+        return render_template('results.html', posts=posts, Post_model=Post, user=current_user(), query=query, User_model=persons)
 
 # Message route
-@app.route('/messages')
-def index():
-    return render_template('./message.html')
+@app.route('/messages', methods= ['GET', 'POST'])
+def messa():
+    searchChat = Chat.query.filter((Chat.user1==current_user().id) | (Chat.user2==current_user().id))
+    if request.method == 'POST' :
+        userSend = request.form['userSend']
+        bodyGet = request.form['mess']
+        userF = User.query.filter_by(username=userSend).first()
+        if userF is None:
+            return render_template('./message.html', version=False, error=True, myChats=searchChat, myUser=current_user(), allUser=User)
+        else :
+            searchSpec = Chat.query.filter((Chat.user1==current_user().id) & (Chat.user2==userF.id)).first()
+            if searchSpec is None:
+                searchSpec = Chat.query.filter((Chat.user1==userF.id) & (Chat.user2==current_user().id)).first()
+            if searchSpec is None :
+                newChat = Chat(user1=current_user().id, user2=userF.id)
+                newMessage = SingleMessage(sender_id=current_user().id, recipient_id=userF.id, body=bodyGet,chatOwner=newChat.id)      
+                newChat.messages.append(newMessage)
+                db.session.add(newChat)
+                db.session.commit()
+                notification = Notification(postId=newChat.id, author=userF, user_C=current_user().id , typeAct=4)
+                userF.my_notifications.append(notification)
+                db.session.commit()
+                return render_template('./message.html', version=False, myChats=searchChat, myUser=current_user(), allUser=User, send=True)
+            else :
+                newMessage = SingleMessage(sender_id=current_user().id, recipient_id=userF.id, body=bodyGet)
+                searchSpec.messages.append(newMessage)
+                notification = Notification(postId=searchSpec.id, author=userF, user_C=current_user().id , typeAct=4)
+                userF.my_notifications.append(notification)
+                db.session.commit()
+                return render_template('./message.html', version=False, myChats=searchChat, myUser=current_user(), allUser=User, send=True)
+    return render_template('./message.html', version=False, myChats=searchChat, myUser=current_user(), allUser=User)
 
-@socketio.on('my event')
-def handle_my_custom_event(json):
-    print('received something: ' + str(json))
-    socketio.emit('my response', json)
-
+@app.route('/messages/<id>', methods=['GET', 'POST'])
+def messawith(id):
+    searchChat = Chat.query.filter((Chat.user1==current_user().id) | (Chat.user2==current_user().id))
+    thisChat = Chat.query.filter_by(id=id).first()
+    if thisChat.user1 == current_user().id :
+        userF = User.query.filter_by(id=thisChat.user2).first()
+    else :
+        userF = User.query.filter_by(id=thisChat.user1).first()
+    if request.method == 'POST' : 
+        bodyGet = request.form['mess']
+        newMessage = SingleMessage(sender_id=current_user().id, recipient_id=userF.id, body=bodyGet)
+        thisChat.messages.append(newMessage)
+        notification = Notification(postId=thisChat.id, author=userF, user_C=current_user().id , typeAct=4)
+        userF.my_notifications.append(notification)
+        db.session.commit()
+        return render_template('./message.html', version=True, myChats=searchChat, myUser=current_user(), allUser=User, chatChos= thisChat, otherUser=userF)
+    return render_template('./message.html', version=True, myChats=searchChat, myUser=current_user(), allUser=User, chatChos= thisChat, otherUser=userF)
 
 # Follow route
 @app.route('/follow/<id>')
@@ -511,7 +591,7 @@ def retweet(id):
 
     if Post.query.filter_by(user_id=current_user().id).filter_by(retweet=id).all():
         rm_post = Post.query.filter_by(
-            user_id=current_user().id).filter_by(retweet=id).first()
+        user_id=current_user().id).filter_by(retweet=id).first()
         db.session.delete(rm_post)
         db.session.commit()
 
@@ -519,6 +599,9 @@ def retweet(id):
         return redirect(url_for('home'))
 
     post = Post(content='', user_id=current_user().id, retweet=id)
+    notification = Notification(postId=id, author=re_post.author, user_C=current_user().id , typeAct=3)
+    re_post.author.my_notifications.append(notification)
+
     db.session.add(post)
     db.session.commit()
 
@@ -540,10 +623,13 @@ def new_comment(post_id):
         # Get form content
         content = f'@{commented_post.author.username}  ' + form.content.data
 
+        notification = Notification(postId=post_id, author=commented_post.author, user_C=current_user().id , typeAct=1)
+        
         # Make comment object
         comment = Post(content=content, author=current_user(), comment=post_id)
-
+        commented_post.author.my_notifications.append(notification)
         # Add comment to db session
+
         db.session.add(comment)
 
         # Commit session to db
@@ -555,24 +641,6 @@ def new_comment(post_id):
 
     return render_template('new_post.html', form=form, title=f"Comment to @{commented_post.author.username}'s post:")
 
-# Token for passwords
-
-def generate_confirmation_token(email):
-    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-    return serializer.dumps(email, salt=app.config['SECURITY_PASSWORD_SALT'])
-
-
-def confirm_token(token, expiration=3600):
-    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-    try:
-        email = serializer.loads(
-            token,
-            salt=app.config['SECURITY_PASSWORD_SALT'],
-            max_age=expiration
-        )
-    except:
-        return False
-    return email
 
 #hadles and shows user there is an error
 @app.errorhandler(404)
