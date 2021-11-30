@@ -1,0 +1,10 @@
+{% if current_user.is_anonymous %}
+                    ...
+                    {% else %}
+                    <li>
+                        <a href="{{ url_for('main.messages') }}">
+                            {{ _('Messages') }}
+                        </a>
+                    </li>
+                    ...
+                    {% endif %}
