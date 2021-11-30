@@ -14,26 +14,6 @@
     {{ url_for('new_post') }}" class=" button is-success is-rounded">New Post</a>
 <hr>
 
-<div class="columns is-centered">
-    <div class="column is-two-thirds">
-        <div class="level is-hidden-touch">
-            <div class="level-left">
-                <h2 class="subtitle is-3">Post History</h2>
-            </div>
-            <div class="level-right">
-                <h6 class="subtitle is-3">Following</h6>
-            </div>
-        </div>
-        <div class="level-left"> 
-            <div class="column is-two-thirds">
-                    {% for post in posts|reverse %}
-            
-            
-                    {% include "includes/_post.html" %}
-            
-                    {% endfor %}
-            </div>
-    </div>
-</div>
+
 
 {% endblock %}

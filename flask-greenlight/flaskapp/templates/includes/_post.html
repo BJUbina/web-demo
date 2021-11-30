@@ -9,7 +9,7 @@
                 </p>
             </figure>
             <div class="media-content">
-                <div class="content">
+                <div class="content" style="position: relative;">
                     <p style="margin-bottom: .8rem;">
                         <strong class="has-text-success">@{{post.author.username}}{% if post.author.verified %}
                             &nbsp;<i class="fas fa-check-circle"></i>
@@ -17,6 +17,20 @@
                         <small
                             class="has-text-weight-semibold">&nbsp;&nbsp;{{post.date_posted.strftime('%B %d, %Y')}}</small>
                         <br>
+                        {% if post.user_id == user.id%}
+                            <div class="navbar-item has-dropdown is-hoverable" style="position:absolute; top: 0rem; right: 0rem;">
+                                <a class="navbar-item">
+                                    <span class="icon has-text-success">
+                                        <i class="fas fa-lg fa-ellipsis-v"></i>
+                                    </span>
+                                </a>
+                                <div class="navbar-dropdown">
+                                    <a class="navbar-item has-text-success" href="/edit/{{ id }}">
+                                        <i class="fas fa-user"></i>&nbsp;&nbsp;Edit
+                                    </a>
+                                </div>
+                            </div>
+                        {% endif %}
                         <p style="margin-bottom: .8rem;">{{post.content}}</p>
 
 
